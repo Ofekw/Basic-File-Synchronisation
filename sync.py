@@ -13,11 +13,11 @@ def main(dir1, dir2):
     print(dir1 + " " + dir2)
     sync1 = load_sync_json(dir1)
     sync2 = load_sync_json(dir2)
-    update_sync(dir1, sync1)
-    update_sync(dir2, sync2)
+    update_sync(dir1, sync1, dir2)
+    update_sync(dir2, sync2, dir1)
     sync(sync1, sync2, dir1, dir2)
-    update_sync(dir1, sync1)
-    update_sync(dir2, sync2)
+    update_sync(dir1, sync1, dir2)
+    update_sync(dir2, sync2, dir1)
     write_sync_file(dir1, sync1)
     write_sync_file(dir2, sync2)
 
@@ -28,12 +28,18 @@ Load in the two folders and all their files, check if folders exist, if they do 
 """
 
 
-def load_files(dir):
+def load_files(dir, other_dir):
     if os.path.exists(dir):  # ie folder exists
         dir_filenames = os.listdir(dir)
         for filename in dir_filenames:
             # check if folder and if it is recall main function
-            pathname = os.path.join(dir, filename)
+            dir_path1 = os.path.join(dir, filename)
+            if os.path.isdir(dir_path1):
+                dir_filenames.remove(filename)
+                dir_path2 = os.path.join(other_dir, filename)
+                if not os.path.exists(dir_path2):
+                    os.makedirs(dir_path2)
+                main(dir_path1, dir_path2)
     else:
         # create folder
         os.makedirs(dir)
@@ -74,8 +80,8 @@ def get_SHA(pathname):
     return hasher.hexdigest()
 
 
-def update_sync(dir, sync):
-    dir_filenames = load_files(dir)
+def update_sync(dir, sync, other_dir):
+    dir_filenames = load_files(dir, other_dir)
     for filename in dir_filenames:
         pathname = os.path.join(dir, filename)
         if filename != ".sync":
@@ -100,16 +106,6 @@ def update_sync(dir, sync):
                 file_array.insert(0, [str(datetime.datetime.now()), "deleted"])
                 break
 
-
-"""
-@function
-Compare old and new syncs to generate final sync file and move files accordingly
-"""
-
-"""
-@function
-Write final sync file to both folders
-"""
 
 """
 @function
