@@ -2,7 +2,7 @@
 import sys
 import os
 import json
-import datetime
+import time
 import hashlib
 import shutil
 
@@ -10,16 +10,43 @@ __author__ = 'Ofek'
 
 
 def main(dir1, dir2):
-    print(dir1 + " " + dir2)
+    crawl_folders(dir1, dir2)
     sync1 = load_sync_json(dir1)
     sync2 = load_sync_json(dir2)
-    update_sync(dir1, sync1, dir2)
-    update_sync(dir2, sync2, dir1)
+    update_sync(dir1, sync1)
+    update_sync(dir2, sync2)
     sync(sync1, sync2, dir1, dir2)
-    update_sync(dir1, sync1, dir2)
-    update_sync(dir2, sync2, dir1)
+    update_sync(dir1, sync1)
+    update_sync(dir2, sync2)
     write_sync_file(dir1, sync1)
     write_sync_file(dir2, sync2)
+
+
+"""
+@function
+Recursively crawl through all folders calling main
+"""
+
+
+def crawl_folders(dir, other_dir):
+    if os.path.exists(dir):  # ie folder exists
+        dir_filenames = os.listdir(dir)
+        dir2_filenames = os.listdir(other_dir)
+        for filename_dir2 in dir2_filenames:
+            if any(filename_dir2 in filename_dir1 for filename_dir1 in dir_filenames):
+                dir_filenames.append(filename_dir2)
+        for filename in dir_filenames:
+            # check if folder and if it is recall main function
+            dir_path1 = os.path.join(dir, filename)
+            dir_path2 = os.path.join(other_dir, filename)
+            if os.path.isdir(dir_path1) or os.path.isdir(dir_path2):
+                if not os.path.exists(dir_path1):
+                    os.makedirs(dir_path1)
+                if not os.path.exists(dir_path2):
+                    os.makedirs(dir_path2)
+                main(dir_path1, dir_path2)
+                dir_filenames.remove(filename)
+                dir_filenames[:] = [name for name in dir_filenames if name != filename]
 
 
 """
@@ -28,18 +55,13 @@ Load in the two folders and all their files, check if folders exist, if they do 
 """
 
 
-def load_files(dir, other_dir):
+def load_files(dir):
     if os.path.exists(dir):  # ie folder exists
         dir_filenames = os.listdir(dir)
         for filename in dir_filenames:
-            # check if folder and if it is recall main function
-            dir_path1 = os.path.join(dir, filename)
-            if os.path.isdir(dir_path1):
+            dir_path = os.path.join(dir, filename)
+            if os.path.isdir(dir_path):
                 dir_filenames.remove(filename)
-                dir_path2 = os.path.join(other_dir, filename)
-                if not os.path.exists(dir_path2):
-                    os.makedirs(dir_path2)
-                main(dir_path1, dir_path2)
     else:
         # create folder
         os.makedirs(dir)
@@ -65,7 +87,8 @@ Update sync files
 
 
 def get_modification_date(pathname):
-    return datetime.datetime.fromtimestamp(os.path.getmtime(pathname))
+    mod_date = str(time.strftime('%Y-%m-%d %H:%M:%S %z', time.localtime(os.path.getmtime(pathname))))
+    return mod_date  # datetime.datetime.fromtimestamp(os.path.getmtime(pathname))
 
 
 def get_SHA(pathname):
@@ -80,8 +103,8 @@ def get_SHA(pathname):
     return hasher.hexdigest()
 
 
-def update_sync(dir, sync, other_dir):
-    dir_filenames = load_files(dir, other_dir)
+def update_sync(dir, sync):
+    dir_filenames = load_files(dir)
     for filename in dir_filenames:
         pathname = os.path.join(dir, filename)
         if filename != ".sync":
@@ -89,11 +112,11 @@ def update_sync(dir, sync, other_dir):
                 file_array = sync.get(filename)
                 SHA = get_SHA(pathname)
                 modification_date = get_modification_date(pathname)
-                if SHA != file_array[0][1] or str(modification_date) > (file_array[0][0]):
-                    file_array.insert(0, [str(modification_date), SHA])
+                if SHA != file_array[0][1] or modification_date > (file_array[0][0]):
+                    file_array.insert(0, [modification_date, SHA])
             else:
                 # else add to dictionary as new entry
-                sync[filename] = [[str(get_modification_date(pathname)), get_SHA(pathname)]]
+                sync[filename] = [[get_modification_date(pathname), get_SHA(pathname)]]
                 # check if deleted
         for key in sync.keys():
             keyfound = False
@@ -103,7 +126,7 @@ def update_sync(dir, sync, other_dir):
                     break
             if not keyfound and sync[key][0][1] != "deleted":
                 file_array = sync.get(key)
-                file_array.insert(0, [str(datetime.datetime.now()), "deleted"])
+                file_array.insert(0, [time.strftime("%Y-%m-%d %H:%M:%S %z", time.localtime()), "deleted"])
                 break
 
 
@@ -192,7 +215,8 @@ def sync(sync1, sync2, dir1, dir2):
     for filename in sync2.keys():
         if filename not in sync1 and sync2[filename][0][1] != "deleted":
             pathname = os.path.join(dir2, filename)
-            shutil.copy2(pathname, dir1)
+            if os.path.exists(pathname):
+                shutil.copy2(pathname, dir1)
 
 
 def copy_latest_file(dir1, dir2, filename, latest_file_update_sync1, latest_file_update_sync2):
