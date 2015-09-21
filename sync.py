@@ -10,6 +10,14 @@ __author__ = 'Ofek'
 
 
 def main(dir1, dir2):
+
+    if not os.path.exists(dir1):  # ie folder exists
+    # create folder
+        os.makedirs(dir1)
+    if not os.path.exists(dir2):  # ie folder exists
+        # create folder
+        os.makedirs(dir2)
+
     crawl_folders(dir1, dir2)
     sync1 = load_sync_json(dir1)
     sync2 = load_sync_json(dir2)
@@ -28,26 +36,32 @@ Recursively crawl through all folders calling main
 """
 
 
-def crawl_folders(dir1, other_dir):
-    if os.path.exists(dir1):  # ie folder exists
-        dir_filenames = os.listdir(dir1)
-        dir2_filenames = os.listdir(other_dir)
-        for filename_dir2 in dir2_filenames:
-            if any(filename_dir2 in filename_dir1 for filename_dir1 in dir_filenames):
-                dir_filenames.append(filename_dir2)
-        dir_filenames[:] = [name for name in dir_filenames if name != ".sync"]
-        for filename in dir_filenames:
-            # check if folder and if it is recall main function
-            dir_path1 = os.path.join(dir1, filename)
-            dir_path2 = os.path.join(other_dir, filename)
-            if os.path.isdir(dir_path1) or os.path.isdir(dir_path2):
-                if not os.path.exists(dir_path1):
-                    os.makedirs(dir_path1)
-                if not os.path.exists(dir_path2):
-                    os.makedirs(dir_path2)
-                main(dir_path1, dir_path2)
-                dir_filenames.remove(filename)
-                dir_filenames[:] = [name for name in dir_filenames if name != filename]
+def crawl_folders(dir1, dir2):
+    #get all sub directories and union them, then call snycMain to start sync on those
+    dir_one = [d for d in os.listdir(dir1) if os.path.isdir(os.path.join(dir1, d))]
+    dir_two = [d for d in os.listdir(dir2) if os.path.isdir(os.path.join(dir2, d))]
+    folders_to_sync = list(set(dir_one) | set(dir_two))
+    for f in folders_to_sync:
+        main(dir1+"/"+f, dir2+"/"+f)
+    # if os.path.exists(dir1):  # ie folder exists
+    #     dir_filenames = os.listdir(dir1)
+    #     dir2_filenames = os.listdir(other_dir)
+    #     for filename_dir2 in dir2_filenames:
+    #         if any(filename_dir2 in filename_dir1 for filename_dir1 in dir_filenames):
+    #             dir_filenames.append(filename_dir2)
+    #     dir_filenames[:] = [name for name in dir_filenames if name != ".sync"]
+    #     for filename in dir_filenames:
+    #         # check if folder and if it is recall main function
+    #         dir_path1 = os.path.join(dir1, filename)
+    #         dir_path2 = os.path.join(other_dir, filename)
+    #         if os.path.isdir(dir_path1) or os.path.isdir(dir_path2):
+    #             if not os.path.exists(dir_path1):
+    #                 os.makedirs(dir_path1)
+    #             if not os.path.exists(dir_path2):
+    #                 os.makedirs(dir_path2)
+    #             main(dir_path1, dir_path2)
+    #             dir_filenames.remove(filename)
+    #             dir_filenames[:] = [name for name in dir_filenames if name != filename]
 
 
 """
@@ -108,9 +122,9 @@ def update_sync(dir, sync):
     dir_filenames = load_files(dir)
     for filename in dir_filenames:
         pathname = os.path.join(dir, filename)
-        # if os.path.isdir(pathname):
-        #         dir_filenames.remove(filename)
-        #         continue
+        if os.path.isdir(pathname):
+                dir_filenames.remove(filename)
+                continue
         if filename != ".sync":
             if filename in sync:
                 file_array = sync.get(filename)
@@ -249,11 +263,4 @@ if __name__ == "__main__":
     if len(sys.argv) < 2 or len(sys.argv) > 3:
         print("Usage: sync directory1 directory2")
         exit()
-    if not os.path.exists(sys.argv[1]):  # ie folder exists
-        # create folder
-        os.makedirs(sys.argv[1])
-    if not os.path.exists(sys.argv[2]):  # ie folder exists
-        # create folder
-        os.makedirs(sys.argv[2])
-
     main(sys.argv[1], sys.argv[2])
