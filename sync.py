@@ -260,7 +260,7 @@ Recursive function that calls main with inputs as the new child folders
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2 or len(sys.argv) > 3:
+    if len(sys.argv) != 3 or (not os.path.isdir(sys.argv[1]) and not os.path.isdir(sys.argv[2])) :
         print("Usage: sync directory1 directory2")
         exit()
     main(sys.argv[1], sys.argv[2])
